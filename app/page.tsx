@@ -95,20 +95,14 @@ const CodeBlock = ({
 export default function ChatPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [chatHistory, setChatHistory] = useState<
-    { _id: string; title: string }[]
-  >([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "model",
-      parts: [{ text: "Hi! Main aapka AI mentor hoon. Kaise help karun?" }],
-    },
-  ]);
+  const [chatHistory, setChatHistory] = useState<{ _id: string; title: string }[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([{ role: "model", parts: [{ text: "Hi! Main aapka AI mentor hoon. Kaise help karun?" }], },]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+const [chatToDelete, setChatToDelete] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -136,15 +130,6 @@ export default function ChatPage() {
   loadHistory();
 }, [activeChatId]);
 
-//   useEffect(() => {
-//   const loadHistory = async () => {
-//     const res = await fetch("/api/history");
-//     const data = await res.json();
-//     if (!data.error) setChatHistory(data);
-//   };
-//   loadHistory();
-// }, [activeChatId]);
-
 const loadHistory = async () => {
   const res = await fetch("/api/history");
   const data = await res.json();
@@ -167,28 +152,31 @@ const loadHistory = async () => {
     stopVisualOnly();
   };
 
-  const deleteChat = async (e: React.MouseEvent, chatId: string) => {
-    e.stopPropagation();
-    if (!confirm("Pakka delete karna hai?")) return;
-    try {
-      const res = await fetch(`/api/chat/${chatId}`, {
-        method: "DELETE",
-        cache: "no-store",
-      });
-      if (res.ok) {
-        setChatHistory((prev) => prev.filter((chat) => chat._id !== chatId));
-        if (activeChatId === chatId) {
-          setActiveChatId(null);
-          setMessages([{ role: "model", parts: [{ text: "Hi! Main aapka AI mentor hoon. Kaise help karun?" }] }]);
-        }
-      } else {
-        alert("Server ne delete nahi kiya!");
-      }
-    } catch (err) {
-      console.error("Delete error:", err);
-    }
-  };
+  const confirmDelete = (e: React.MouseEvent, chatId: string) => {
+  e.stopPropagation(); // Parent click prevent karo
+  setChatToDelete(chatId);
+  setShowDeleteModal(true);
+};
 
+const executeDelete = async () => {
+  if (!chatToDelete) return;
+  
+  try {
+    const res = await fetch(`/api/chat/${chatToDelete}`, { method: "DELETE" });
+    if (res.ok) {
+      setChatHistory((prev) => prev.filter((chat) => chat._id !== chatToDelete));
+      if (activeChatId === chatToDelete) {
+        setActiveChatId(null);
+        setMessages([{ role: "model", parts: [{ text: "Hi! Main aapka AI mentor hoon. Kaise help karun?" }] }]);
+      }
+    }
+  } catch (err) {
+    console.error("Delete failed:", err);
+  } finally {
+    setShowDeleteModal(false);
+    setChatToDelete(null);
+  }
+};
   const simulateTyping = (fullText: string) => {
     let currentText = "";
     let index = 0;
@@ -307,11 +295,17 @@ const loadHistory = async () => {
               className={`flex items-center justify-between p-3 rounded-xl cursor-pointer group transition-all ${activeChatId === chat._id ? "bg-[#2f2f2f] text-white" : "text-gray-400 hover:bg-[#2f2f2f]"}`}
             >
               <div className="flex items-center gap-3 truncate">
-                <MessageSquare size={16} /><span className="text-sm truncate font-medium">{chat.title}</span>
+                {/* <MessageSquare size={16} /> */}
+                <span className="text-sm truncate font-medium">{chat.title}</span>
               </div>
-              <button onClick={(e) => deleteChat(e, chat._id)} className=" group-hover:opacity-100 p-1 hover:text-red-400 transition-all">
-                <Trash2 size={14} />
-              </button>
+             
+
+              <button 
+  onClick={(e) => confirmDelete(e, chat._id)} // ✅ Isse replace karo
+  className=" group-hover:opacity-100 p-1 hover:text-red-400 transition-all"
+>
+  <Trash2 size={14} />
+</button>
             </div>
           ))}
         </div>
@@ -426,6 +420,32 @@ const loadHistory = async () => {
                 Send
               </button>
             )}
+
+            {showDeleteModal && (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+    <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in duration-200 border border-gray-100">
+    
+      <h3 className="text-lg font-bold text-black mb-2 tracking-tight">Chat delete karni hai?</h3>
+      <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+        Ye chat hamesha ke liye delete ho jayegi. Kya aap sure hain?
+      </p>
+      <div className="flex gap-3">
+        <button
+          onClick={() => setShowDeleteModal(false)}
+          className="flex-1 px-4 py-3 bg-gray-200 hover:bg-gray-400 text-black rounded-xl font-bold text-sm transition-all"
+        >
+          Nahi, Rehne do
+        </button>
+        <button
+          onClick={executeDelete}
+          className="flex-1 px-4 py-3 bg-red-400 hover:bg-red-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-red-200 transition-all"
+        >
+          Haan, Delete kar do
+        </button>
+      </div>
+    </div>
+  </div>
+)}
           </div>
         </div>
       </main>
