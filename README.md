@@ -43,3 +43,13 @@ Authentication (Login/Signup)
 Chat history UI improvements
 Multi-chat sessions
 Dark mode
+
+🙌 Author
+
+Rajshree Jajoo
+Frontend Engineer | React | Next.js
+
+LinkedIn: https://www.linkedin.com/in/rajshree-jajoo-297049184
+GitHub: https://github.com/RajshreeJajoo
+
+⭐ If you like this project, give it a star!
