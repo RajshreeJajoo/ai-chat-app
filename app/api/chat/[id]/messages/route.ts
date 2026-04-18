@@ -4,10 +4,10 @@ import { ObjectId } from "mongodb";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params; 
+    const { id } = await context.params; // ✅ IMPORTANT FIX
 
     const client = await clientPromise;
     const db = client.db("ai-chat-db");
