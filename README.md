@@ -37,7 +37,6 @@ GEMINI_API_KEY=your_api_key
 Run the app
 npm run dev
 
-
 📌 Future Improvements
 Authentication (Login/Signup)
 Chat history UI improvements
