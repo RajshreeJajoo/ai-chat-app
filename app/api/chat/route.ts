@@ -1,6 +1,8 @@
+
 import { NextResponse } from "next/server";
 import clientPromise from "../../../lib/mongodb";
 import { ObjectId } from "mongodb";
+import { updateChatSummary } from "@/lib/summaryUtils";
 
 interface ChatMessage {
   role: "user" | "model";
@@ -27,57 +29,57 @@ export async function POST(req: Request) {
     const lastUserMessage = messages[messages.length - 1].parts[0].text;
 
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "API Key missing" }, { status: 500 });
-    }
+    if (!apiKey) return NextResponse.json({ error: "API Key missing" }, { status: 500 });
 
-    // 1. Database Logic: Chat ID handle karna
-    let currentChatId: string;
-    if (!chatId) {
+    // 1. Fetch Chat Context (Summary)
+    let currentChatId = chatId ? new ObjectId(chatId) : null;
+    let chatDoc = null;
+
+    if (currentChatId) {
+      chatDoc = await db.collection("Chat").findOne({ _id: currentChatId });
+    } else {
       const newChat = await db.collection("Chat").insertOne({
         title: lastUserMessage.substring(0, 40) + "...",
+        summary: "", // Initialize summary
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      currentChatId = newChat.insertedId.toString();
-    } else {
-      currentChatId = chatId;
+      currentChatId = newChat.insertedId;
     }
 
-    // 2. User Message Save Karo
+    // 2. Save User Message
     await db.collection("Message").insertOne({
-      chatId: new ObjectId(currentChatId),
+      chatId: currentChatId,
       role: "user",
       content: lastUserMessage,
       createdAt: new Date(),
     });
 
-    // 3. Gemini 2.5 API Call (v1beta endpoint & System Instruction Fix)
+    // 3. Prepare Payload with Summary
+    const existingSummary = chatDoc?.summary || "No previous summary.";
+    
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     
     const payload = {
-      // Gemini 2.5 models mein system prompt yahan jata hai
-      // system_instruction: {
-      //   parts: [{ text: `You are an AI Mentor. Your expertise is strictly limited to ${userProfile}. If a user asks anything outside these topics (like cooking, history, or general gossip), politely refuse and say: 'Main sirf AI aur Tech related sawalon ke jawab de sakta hoon. Chalo kuch naya build karte hain!'` }]
-      // },
-
       system_instruction: {
-      parts: [{ 
-        text: `You are an AI Mentor. Your expertise is strictly limited to ${userProfile.skills}. 
-        1. Only answer technical questions related to these topics.
-        2. Use a professional yet supportive tone.
-        3. If the user asks about non-tech topics (e.g., life advice, food, history), strictly refuse with: 'Main sirf AI aur Tech related sawalon ke jawab de sakta hoon. Chalo kuch naya build karte hain!'
-        4. Provide code snippets only in Javascript/React/TypeScript/Next.js context when applicable.` 
-      }]
-    },
-      contents: messages.map((m) => ({
+        parts: [{ 
+          text: `You are an AI Mentor. Your expertise is strictly limited to  ${userProfile.skills}.
+          --- CHAT CONTEXT SUMMARY ---
+          ${existingSummary}
+          ----------------------------
+        1.  Use the summary above to maintain continuity.
+        2. Only answer technical questions related to these topics.
+        3. Use a professional yet supportive tone.
+        4. If the user asks about non-tech topics (e.g., life advice, food, history), strictly refuse with: 'Main sirf AI aur Tech related sawalon ke jawab de sakta hoon. Chalo kuch naya build karte hain!'
+        5. Provide code snippets only in Javascript/React/TypeScript/Next.js context when applicable.`
+        }]
+      },
+      // Last 10 messages for immediate context
+      contents: messages.slice(-10).map((m) => ({
         role: m.role === "model" ? "model" : "user",
         parts: [{ text: m.parts[0].text }],
       })),
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 1000,
-      }
+      generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
     };
 
     const response = await fetch(url, {
@@ -87,39 +89,43 @@ export async function POST(req: Request) {
     });
 
     const result = await response.json();
-
-    // Debugging: Terminal mein poora error dikhega agar Gemini fail hua
-    if (result.error) {
-      console.error("GEMINI_2.5_ERROR_DETAIL:", JSON.stringify(result.error, null, 2));
-      throw new Error(result.error.message || "Gemini API rejection");
-    }
-
     const aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (aiResponse) {
-      // 4. AI ka jawab Save Karo
+      // 4. Save AI Response
       await db.collection("Message").insertOne({
-        chatId: new ObjectId(currentChatId),
+        chatId: currentChatId,
         role: "model",
         content: aiResponse,
         createdAt: new Date(),
       });
 
-      // 5. Chat ka 'updatedAt' update karo
+      // 5. Update Chat Metadata (and potentially trigger summary refresh if > 20 msgs)
       await db.collection("Chat").updateOne(
-        { _id: new ObjectId(currentChatId) },
+        { _id: currentChatId },
         { $set: { updatedAt: new Date() } }
       );
 
-      return NextResponse.json({ text: aiResponse, chatId: currentChatId });
+      
+      const updatedMessages = [
+  ...messages, 
+  { role: "user" as const, parts: [{ text: lastUserMessage }] }, 
+  { role: "model" as const, parts: [{ text: aiResponse }] }
+];
+      // Har 10 messages par summary update karo
+      if (updatedMessages.length % 10 === 0) {
+        updateChatSummary(currentChatId.toString(), updatedMessages)
+          .catch(err => console.error("Summary update failed:", err));
+      }
+
+      return NextResponse.json({ text: aiResponse, chatId: currentChatId.toString() });
     } else {
-      throw new Error("AI ne koi jawab nahi diya - Candidate array empty hai");
+      throw new Error("AI response failed");
     }
 
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Internal Error";
-    console.error("ROUTE_ERROR:", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+          console.error("API Error:", error); // <-- Yahan check karein
+
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal Error" }, { status: 500 });
   }
 }
-
