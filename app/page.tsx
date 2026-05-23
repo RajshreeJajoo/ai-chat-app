@@ -3,8 +3,9 @@ import { useState, useEffect, useRef } from "react";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { ChatMessages } from "@/components/chat/ChatMessages";
 import { ChatInput } from "@/components/chat/ChatInput";
-import { Menu } from "lucide-react";
+import { Menu, Code, Cpu, Layers } from "lucide-react"; // Added icons for cards
 import { useSpeech } from "./hooks/useSpeech";
+
 interface ChatMessage {
   role: "user" | "model";
   parts: { text: string }[];
@@ -17,10 +18,12 @@ interface DBMessage {
   content: string;
   createdAt: string;
 }
+
 export default function ChatPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
- // const [mounted, setMounted] = useState(false);
   const [chatHistory, setChatHistory] = useState<{ _id: string; title: string }[]>([]);
+  
+  // Keep the greeting message, but we will selectively render cards based on state
   const [messages, setMessages] = useState<{ role: "user" | "model"; parts: { text: string }[] }[]>([
     { role: "model", parts: [{ text: "Hi! Main aapka AI mentor hoon. Kaise help karun?" }] },
   ]);
@@ -37,15 +40,44 @@ export default function ChatPage() {
   const { isListening, startListening, speak  , setIsSpeaking , isSpeaking} = useSpeech();
   const [isLastInputVoice, setIsLastInputVoice] = useState(false);
   
+  // Creative Cards Data
+  const starterCards = [
+    {
+      title: "React Concepts",
+      description: "State management, Custom hooks, and rendering lifecycles optimize karein.",
+      icon: <Code className="w-5 h-5 text-blue-500" />,
+      prompt: "React me custom hooks use karke state management optimize kaise karein? Ek basic example do."
+    },
+    {
+      title: "Next.js 14 / App Router",
+      description: "Server Actions, PPR, and Server Components deep dive architecture.",
+      icon: <Layers className="w-5 h-5 text-black" />,
+      prompt: "Next.js 14 App Router me Server Actions aur Server Components ka best production structure kya hai?"
+    },
+    {
+      title: "AI Integration",
+      description: "Gemini API configurations aur efficient prompt engineering implementations.",
+      icon: <Cpu className="w-5 h-5 text-purple-500" />,
+      prompt: "Next.js me Gemini API integration ke sath dynamic system prompts aur streaming setup kaise banayein?"
+    }
+  ];
+
+  const handleCardClick = (promptText: string) => {
+    setInput(promptText);
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   const loadHistory = async () => {
-  const res = await fetch("/api/history");
-  const data = await res.json();
-  if (!data.error) setChatHistory(data);
-};
+    const res = await fetch("/api/history");
+    const data = await res.json();
+    if (!data.error) setChatHistory(data);
+  };
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -66,7 +98,6 @@ export default function ChatPage() {
         console.error("Failed to load chat history:", err);
       }
     };
-
     fetchHistory();
   }, []);
 
@@ -80,7 +111,7 @@ export default function ChatPage() {
 
   const handleStop = () => {
     window.speechSynthesis.cancel(); 
-    setIsSpeaking(false); // ✅ Yahan reset karein
+    setIsSpeaking(false);
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -89,37 +120,37 @@ export default function ChatPage() {
   };
 
   const confirmDelete = (e: React.MouseEvent, chatId: string) => {
-  e.stopPropagation(); 
-  setChatToDelete(chatId);
-  setShowDeleteModal(true);
-};
+    e.stopPropagation(); 
+    setChatToDelete(chatId);
+    setShowDeleteModal(true);
+  };
 
-const executeDelete = async () => {
-  if (!chatToDelete) return;
-  
-  try {
-    const res = await fetch(`/api/chat/${chatToDelete}`, { method: "DELETE" });
-    if (res.ok) {
-      setChatHistory((prev) => prev.filter((chat) => chat._id !== chatToDelete));
-      if (activeChatId === chatToDelete) {
-        setActiveChatId(null);
-        setMessages([{ role: "model", parts: [{ text: "Hi! Main aapka AI mentor hoon. Kaise help karun?" }] }]);
+  const executeDelete = async () => {
+    if (!chatToDelete) return;
+    try {
+      const res = await fetch(`/api/chat/${chatToDelete}`, { method: "DELETE" });
+      if (res.ok) {
+        setChatHistory((prev) => prev.filter((chat) => chat._id !== chatToDelete));
+        if (activeChatId === chatToDelete) {
+          setActiveChatId(null);
+          setMessages([{ role: "model", parts: [{ text: "Hi! Main aapka AI mentor hoon. Kaise help karun?" }] }]);
+        }
       }
+    } catch (err) {
+      console.error("Delete failed:", err);
+    } finally {
+      setShowDeleteModal(false);
+      setChatToDelete(null);
     }
-  } catch (err) {
-    console.error("Delete failed:", err);
-  } finally {
-    setShowDeleteModal(false);
-    setChatToDelete(null);
-  }
-};
+  };
+
   const simulateTyping = (fullText: string, shouldSpeak: boolean) => {
     let currentText = "";
     let index = 0;
     setMessages((prev) => [...prev, { role: "model", parts: [{ text: "" }] }]);
     if (shouldSpeak) {
-    speak(fullText, shouldSpeak);
-  }
+      speak(fullText, shouldSpeak);
+    }
     if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
     typingIntervalRef.current = setInterval(() => {
       if (index < fullText.length) {
@@ -133,14 +164,13 @@ const executeDelete = async () => {
         index++;
       } else {
         stopVisualOnly();
-        //  speak(fullText, shouldSpeak)
       }
     }, 10);
   };
 
   const loadChatMessages = async (chatId: string) => {
     setLoading(true);
-    setMessages([]); // ✅ Purana UI clear logic
+    setMessages([]); 
     setActiveChatId(chatId);
     setSidebarOpen(false);
     try {
@@ -161,22 +191,27 @@ const executeDelete = async () => {
   };
 
   const sendMessage = async () => {
-    setIsLastInputVoice(false)
+    setIsLastInputVoice(false);
     if (!input.trim() || loading) return;
     setError(null);
     setLoading(true);
     const controller = new AbortController();
     abortControllerRef.current = controller;
     const userMsg: ChatMessage = { role: "user", parts: [{ text: input }] };
-    setMessages((prev) => [...prev, userMsg]);
+    
+    // Check if it's the first message of a new chat session to avoid weird layout shifts
+    const updatedMessages = activeChatId ? [...messages, userMsg] : [userMsg];
+    
+    setMessages((prev) => activeChatId ? [...prev, userMsg] : [userMsg]);
     setInput("");
+    
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
-          messages: [...messages, userMsg],
+          messages: updatedMessages,
           userProfile: { skills: "Artificial Intelligence, Machine Learning, Next.js, and React" },
           chatId: activeChatId,
         }),
@@ -184,7 +219,6 @@ const executeDelete = async () => {
       if (!res.ok) throw new Error("API Connection Failed");
       const data = await res.json();
       
-      // ✅ Active ID update logic
       if (data.chatId && !activeChatId) {
         setActiveChatId(data.chatId);
         await loadHistory();
@@ -208,17 +242,15 @@ const executeDelete = async () => {
   };
 
   const handleVoice = () => {
-    setIsLastInputVoice(true)
-    setLoading(true)
-    // startListening((transcript) => {
-    //   setInput((prev) => prev + " " + transcript);
-    // });
+    setIsLastInputVoice(true);
+    setLoading(true);
     startListening((transcript) => {
-    setInput((prev) => (prev + " " + transcript).trim());
-  });
+      setInput((prev) => (prev + " " + transcript).trim());
+    });
   };
 
-  //if (!mounted) return null;
+  // Condition to determine whether to show suggestions grid or conversation history
+  const isNewChatSession = !activeChatId && messages.length <= 1;
 
   return (
     <div className="flex h-screen w-full bg-white text-black font-sans overflow-hidden">
@@ -228,15 +260,15 @@ const executeDelete = async () => {
         chatHistory={chatHistory}
         activeChatId={activeChatId}
         loadChat={loadChatMessages}
-         onNewChat={() => {
-            handleStop();
-            setActiveChatId(null); // ✅ Reset active chat
-            setMessages([{ role: "model", parts: [{ text: "Hi! Main aapka AI mentor hoon. Kaise help karun?" }] }]);
-            setInput("");
-            setError(null);
-            setSidebarOpen(false);
-            loadHistory();
-          }}
+        onNewChat={() => {
+          handleStop();
+          setActiveChatId(null); 
+          setMessages([{ role: "model", parts: [{ text: "Hi! Main aapka AI mentor hoon. Kaise help karun?" }] }]);
+          setInput("");
+          setError(null);
+          setSidebarOpen(false);
+          loadHistory();
+        }}
         onDelete={confirmDelete}
       />
 
@@ -246,29 +278,68 @@ const executeDelete = async () => {
           <span className="font-bold text-sm">AI MENTOR</span>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
-          <ChatMessages 
-            messages={messages} 
-            error={error} 
-            loading={loading} 
-            messagesEndRef={messagesEndRef} 
-          />
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col justify-between">
+          {isNewChatSession ? (
+            /* Welcome Empty State with Creative Guidance Cards */
+            <div className="my-auto max-w-4xl mx-auto w-full px-4 text-center space-y-10">
+              <div className="space-y-3">
+                <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  Welcome to AI Mentor Spaces
+                </h1>
+                <p className="text-gray-500 max-w-lg mx-auto text-sm md:text-base">
+                  Apne stack ko upgrade karein.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left pt-4">
+                {starterCards.map((card, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleCardClick(card.prompt)}
+                    className="p-5 border border-gray-100 rounded-2xl bg-gray-50/50 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 group text-left shadow-sm flex flex-col h-full justify-between"
+                  >
+                    <div className="space-y-3">
+                      <div className="p-2.5 bg-white rounded-xl w-fit shadow-sm group-hover:scale-105 transition-transform">
+                        ={card.icon}
+                      </div>
+                      <h3 className="font-bold text-gray-900 text-base">{card.title}</h3>
+                      <p className="text-gray-500 text-xs leading-relaxed">{card.description}</p>
+                    </div>
+                    <div className="text-xs font-semibold text-blue-600 pt-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                      Ask Mentor →
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* Regular chat stream renderer */
+            <div className="space-y-6 w-full max-w-4xl mx-auto">
+              <ChatMessages 
+                messages={messages} 
+                error={error} 
+                loading={loading} 
+                messagesEndRef={messagesEndRef} 
+              />
+            </div>
+          )}
         </div>
 
-        <ChatInput 
-          input={input}
-          setInput={setInput}
-          onSend={sendMessage}
-          onStop={handleStop}
-          loading={loading}
-          textareaRef={textareaRef}
-          onVoiceInput={handleVoice}
-          isListening={isListening}
-          isLastInputVoice={isLastInputVoice}
-          isSpeaking={isSpeaking}
-        />
+        <div className="p-4 md:p-8 pt-0 w-full max-w-4xl mx-auto">
+          <ChatInput 
+            input={input}
+            setInput={setInput}
+            onSend={sendMessage}
+            onStop={handleStop}
+            loading={loading}
+            textareaRef={textareaRef}
+            onVoiceInput={handleVoice}
+            isListening={isListening}
+            isLastInputVoice={isLastInputVoice}
+            isSpeaking={isSpeaking}
+          />
+        </div>
         
-        {/* Modal remains in the main page for easy overlay control */}
         {showDeleteModal && (
           <DeleteModal 
             onClose={() => setShowDeleteModal(false)} 
@@ -281,8 +352,9 @@ const executeDelete = async () => {
 }
 
 interface DeleteHistory {
-onClose : () => void;
-onConfirm : () => void;}
+  onClose : () => void;
+  onConfirm : () => void;
+}
 
 const DeleteModal = ({ onClose, onConfirm }: DeleteHistory) => (
   <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
