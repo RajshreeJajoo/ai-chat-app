@@ -19,7 +19,7 @@ interface DBMessage {
 }
 export default function ChatPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+ // const [mounted, setMounted] = useState(false);
   const [chatHistory, setChatHistory] = useState<{ _id: string; title: string }[]>([]);
   const [messages, setMessages] = useState<{ role: "user" | "model"; parts: { text: string }[] }[]>([
     { role: "model", parts: [{ text: "Hi! Main aapka AI mentor hoon. Kaise help karun?" }] },
@@ -37,39 +37,38 @@ export default function ChatPage() {
   const { isListening, startListening, speak  , setIsSpeaking , isSpeaking} = useSpeech();
   const [isLastInputVoice, setIsLastInputVoice] = useState(false);
   
-  
-  useEffect(() => { 
-    setMounted(true);
-     loadHistory(); }, []);
-  
-  
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // useEffect(() => {
-  //   setMounted(true);
-  // }, []);
+  const loadHistory = async () => {
+  const res = await fetch("/api/history");
+  const data = await res.json();
+  if (!data.error) setChatHistory(data);
+};
+
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [input]);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages, loading]);
 
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        await loadHistory();
+      } catch (err) {
+        console.error("Failed to load chat history:", err);
+      }
+    };
 
-//   useEffect(() => {
-//   loadHistory();
-// }, []);
-
-const loadHistory = async () => {
-  const res = await fetch("/api/history");
-  const data = await res.json();
-  if (!data.error) setChatHistory(data);
-};
+    fetchHistory();
+  }, []);
 
   const stopVisualOnly = () => {
     if (typingIntervalRef.current) {
@@ -219,7 +218,7 @@ const executeDelete = async () => {
   });
   };
 
-  if (!mounted) return null;
+  //if (!mounted) return null;
 
   return (
     <div className="flex h-screen w-full bg-white text-black font-sans overflow-hidden">
