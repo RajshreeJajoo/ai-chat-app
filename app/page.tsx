@@ -48,10 +48,10 @@ export default function ChatPage() {
     startListening,
     speak,
     stopSpeaking,
+    getActiveSpeechText,
     stopListening,
     isSpeaking,
     speechError,
-    setIsSpeaking,
   } = useSpeech();
 
   const starterCards = [
@@ -110,13 +110,37 @@ export default function ChatPage() {
   }, []);
 
   const handleStop = () => {
+    const pendingVoiceText = getActiveSpeechText();
+
     stopSpeaking();
     stopListening();
+
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+
     setLoading(false);
+
+    if (pendingVoiceText) {
+      setMessages((prev) => {
+        const updated = [...prev];
+        const lastIndex = updated.length - 1;
+        const lastMessage = updated[lastIndex];
+
+        if (
+          lastMessage?.role === "model" &&
+          lastMessage.parts[0].text.includes("Speaking answer")
+        ) {
+          updated[lastIndex] = {
+            role: "model",
+            parts: [{ text: pendingVoiceText }],
+          };
+        }
+
+        return updated;
+      });
+    }
   };
 
   const showResponse = (fullText: string, mode: InputMode) => {

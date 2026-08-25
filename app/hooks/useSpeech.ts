@@ -107,7 +107,7 @@ function waitForVoices(timeoutMs = 4000): Promise<SpeechSynthesisVoice[]> {
     };
 
     const onChange = () => {
-      if ( synth.getVoices().length > 0) {
+      if (synth.getVoices().length > 0) {
         finish();
       }
     };
@@ -136,9 +136,24 @@ export const useSpeech = () => {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
+
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const keepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const speechSessionRef = useRef(0);
+  const activeSpeechTextRef = useRef<string | null>(null);
+  const onSpeechCompleteRef = useRef<(() => void) | null>(null);
+
+  const clearKeepAlive = useCallback(() => {
+    if (keepAliveRef.current) {
+      clearInterval(keepAliveRef.current);
+      keepAliveRef.current = null;
+    }
+  }, []);
+
+  const isSessionActive = useCallback((sessionId: number) => {
+    return sessionId === speechSessionRef.current;
+  }, []);
 
   useEffect(() => {
     const loadVoices = () => {
@@ -150,52 +165,105 @@ export const useSpeech = () => {
 
     return () => {
       window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
-      if (keepAliveRef.current) {
-        clearInterval(keepAliveRef.current);
-      }
+      clearKeepAlive();
     };
-  }, []);
+  }, [clearKeepAlive]);
 
-  const startKeepAlive = useCallback(() => {
-    if (keepAliveRef.current) {
-      clearInterval(keepAliveRef.current);
-    }
-
-    keepAliveRef.current = setInterval(() => {
-      const synth = window.speechSynthesis;
-      if (!synth.speaking && !synth.pending) {
-        if (keepAliveRef.current) {
-          clearInterval(keepAliveRef.current);
-          keepAliveRef.current = null;
-        }
+  const finishSpeech = useCallback(
+    (sessionId: number, runComplete = true) => {
+      if (!isSessionActive(sessionId)) {
         return;
       }
-      synth.pause();
-      synth.resume();
-    }, 8000);
+
+      clearKeepAlive();
+      setIsSpeaking(false);
+      activeSpeechTextRef.current = null;
+
+      if (runComplete) {
+        onSpeechCompleteRef.current?.();
+        onSpeechCompleteRef.current = null;
+      }
+    },
+    [clearKeepAlive, isSessionActive]
+  );
+
+  const startKeepAlive = useCallback(
+    (sessionId: number) => {
+      clearKeepAlive();
+
+      keepAliveRef.current = setInterval(() => {
+        if (!isSessionActive(sessionId)) {
+          clearKeepAlive();
+          return;
+        }
+
+        const synth = window.speechSynthesis;
+        if (!synth.speaking && !synth.pending) {
+          clearKeepAlive();
+          return;
+        }
+
+        synth.pause();
+        synth.resume();
+      }, 8000);
+    },
+    [clearKeepAlive, isSessionActive]
+  );
+
+  const stopSpeaking = useCallback(() => {
+    speechSessionRef.current += 1;
+    onSpeechCompleteRef.current = null;
+
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    synth.pause();
+
+    clearKeepAlive();
+    setIsSpeaking(false);
+    activeSpeechTextRef.current = null;
+  }, [clearKeepAlive]);
+
+  const getActiveSpeechText = useCallback(() => {
+    return activeSpeechTextRef.current;
   }, []);
 
   const speak = useCallback(
     async (text: string, onComplete?: () => void) => {
+      const sessionId = speechSessionRef.current + 1;
+      speechSessionRef.current = sessionId;
+
+      activeSpeechTextRef.current = text;
+      onSpeechCompleteRef.current = onComplete ?? null;
+
       const synth = window.speechSynthesis;
       setSpeechError(null);
       synth.cancel();
+      clearKeepAlive();
 
       await new Promise((resolve) => window.setTimeout(resolve, 80));
 
+      if (!isSessionActive(sessionId)) {
+        return;
+      }
+
       const cleanText = stripMarkdownForSpeech(text);
       if (!cleanText) {
-        onComplete?.();
+        finishSpeech(sessionId);
         return;
       }
 
       if (!("speechSynthesis" in window)) {
         setSpeechError("Speech not supported in this browser.");
-        onComplete?.();
+        finishSpeech(sessionId);
         return;
       }
 
       const voices = await waitForVoices();
+
+      if (!isSessionActive(sessionId)) {
+        return;
+      }
+
       voicesRef.current = voices;
       const voice = pickClearEnglishVoice(voices);
       const chunks = splitTextForSpeech(cleanText);
@@ -204,16 +272,15 @@ export const useSpeech = () => {
       let hadError = false;
 
       const speakNext = () => {
+        if (!isSessionActive(sessionId)) {
+          return;
+        }
+
         if (chunkIndex >= chunks.length) {
-          setIsSpeaking(false);
-          if (keepAliveRef.current) {
-            clearInterval(keepAliveRef.current);
-            keepAliveRef.current = null;
-          }
           if (hadError) {
             setSpeechError("Voice playback failed. Text answer is shown instead.");
           }
-          onComplete?.();
+          finishSpeech(sessionId);
           return;
         }
 
@@ -225,18 +292,28 @@ export const useSpeech = () => {
         utterance.volume = 1;
 
         utterance.onstart = () => {
+          if (!isSessionActive(sessionId)) {
+            synth.cancel();
+            return;
+          }
           if (chunkIndex === 0) {
             setIsSpeaking(true);
-            startKeepAlive();
+            startKeepAlive(sessionId);
           }
         };
 
         utterance.onend = () => {
+          if (!isSessionActive(sessionId)) {
+            return;
+          }
           chunkIndex += 1;
           speakNext();
         };
 
         utterance.onerror = () => {
+          if (!isSessionActive(sessionId)) {
+            return;
+          }
           hadError = true;
           chunkIndex += 1;
           speakNext();
@@ -248,17 +325,8 @@ export const useSpeech = () => {
 
       speakNext();
     },
-    [startKeepAlive]
+    [clearKeepAlive, finishSpeech, isSessionActive, startKeepAlive]
   );
-
-  const stopSpeaking = useCallback(() => {
-    window.speechSynthesis.cancel();
-    setIsSpeaking(false);
-    if (keepAliveRef.current) {
-      clearInterval(keepAliveRef.current);
-      keepAliveRef.current = null;
-    }
-  }, []);
 
   const startListening = useCallback((onComplete: (text: string) => void): void => {
     const RecognitionConstructor =
@@ -318,6 +386,7 @@ export const useSpeech = () => {
     speechError,
     speak,
     stopSpeaking,
+    getActiveSpeechText,
     startListening,
     stopListening,
     setIsSpeaking,
