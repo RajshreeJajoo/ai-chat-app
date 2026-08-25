@@ -7,7 +7,7 @@ A full-stack AI chat application that provides real-time career guidance for fro
 
 ## Features
 
-- **Real-time AI chat** — Gemini 2.5 Flash with typing animation and abort support
+- **Dual input modes** — Type for instant text replies; mic for voice answers with clear English TTS
 - **Persistent history** — Multi-session chat storage in MongoDB with sidebar navigation
 - **Context summarization** — Automatic conversation summaries for long sessions
 - **Voice interaction** — Browser Speech-to-Text and Text-to-Speech
