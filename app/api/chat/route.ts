@@ -70,8 +70,8 @@ export async function POST(req: Request) {
         1.  Use the summary above to maintain continuity.
         2. Only answer technical questions related to these topics.
         3. Use a professional yet supportive tone.
-        4. If the user asks about non-tech topics (e.g., life advice, food, history), strictly refuse with: 'Main sirf AI aur Tech related sawalon ke jawab de sakta hoon. Chalo kuch naya build karte hain!'
-        5. Provide code snippets only in Javascript/React/TypeScript/Next.js context when applicable.`
+        4. If the user asks about non-tech topics (e.g., life advice, food, history), politely decline and redirect to technical topics.
+        5. Provide code snippets in JavaScript, React, TypeScript, or Next.js when applicable.`
         }]
       },
       // Last 10 messages for immediate context
@@ -88,10 +88,18 @@ export async function POST(req: Request) {
       body: JSON.stringify(payload),
     });
 
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`Gemini API error (${response.status}): ${errorBody}`);
+    }
+
     const result = await response.json();
     const aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    if (aiResponse) {
+    if (!aiResponse) {
+      const reason = result.error?.message ?? "No response from Gemini";
+      throw new Error(reason);
+    }
       // 4. Save AI Response
       await db.collection("Message").insertOne({
         chatId: currentChatId,
@@ -112,19 +120,16 @@ export async function POST(req: Request) {
   { role: "user" as const, parts: [{ text: lastUserMessage }] }, 
   { role: "model" as const, parts: [{ text: aiResponse }] }
 ];
-      // Har 10 messages par summary update karo
+      // Refresh summary every 10 messages for long conversations
       if (updatedMessages.length % 10 === 0) {
         updateChatSummary(currentChatId.toString(), updatedMessages)
           .catch(err => console.error("Summary update failed:", err));
       }
 
       return NextResponse.json({ text: aiResponse, chatId: currentChatId.toString() });
-    } else {
-      throw new Error("AI response failed");
-    }
 
   } catch (error: unknown) {
-          console.error("API Error:", error); // <-- Yahan check karein
+    console.error("API Error:", error);
 
     return NextResponse.json({ error: error instanceof Error ? error.message : "Internal Error" }, { status: 500 });
   }

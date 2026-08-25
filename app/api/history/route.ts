@@ -21,7 +21,7 @@ export async function GET() {
 
         return NextResponse.json(
             { 
-                error: "Database se chats nahi mil rahi", 
+                error: "Failed to load chat history", 
                 details: errorMessage 
             }, 
             { status: 500 }

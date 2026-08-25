@@ -10,7 +10,7 @@ export async function updateChatSummary(chatId: string, messages: ChatMessage[])
   const client = await clientPromise;
   const db = client.db("ai-chat-db");
 
-  // Sirf pichle 20-30 messages ka text lo summary banane ke liye
+  // Use the last 30 messages to generate a concise summary
   const historyText = messages.slice(-30).map((m : ChatMessage)=> `${m.role}: ${m.parts[0].text}`).join("\n");
 
   const prompt = `Summarize the following technical conversation in 3 concise sentences. Focus on the core technical problems solved and the technologies discussed: \n\n${historyText}`;

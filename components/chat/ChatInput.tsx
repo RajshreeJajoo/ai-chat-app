@@ -25,7 +25,7 @@ export const ChatInput = ({ input, setInput, onSend, onStop, loading, textareaRe
         value={input}
         onChange={(e) => setInput(e.target.value)}
          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
-        placeholder="Sawal pucho..."
+        placeholder="Ask a question..."
       />
      
 

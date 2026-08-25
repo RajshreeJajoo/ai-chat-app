@@ -25,7 +25,7 @@ export default function ChatPage() {
   
   // Keep the greeting message, but we will selectively render cards based on state
   const [messages, setMessages] = useState<{ role: "user" | "model"; parts: { text: string }[] }[]>([
-    { role: "model", parts: [{ text: "Hi! Main aapka AI mentor hoon. Kaise help karun?" }] },
+    { role: "model", parts: [{ text: "Hi! I'm your AI career mentor. Ask me anything about React, Next.js, TypeScript, or AI integration." }] },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,21 +44,21 @@ export default function ChatPage() {
   const starterCards = [
     {
       title: "React Concepts",
-      description: "State management, Custom hooks, and rendering lifecycles optimize karein.",
+      description: "State management, custom hooks, and rendering lifecycle optimization.",
       icon: <Code className="w-5 h-5 text-blue-500" />,
-      prompt: "React me custom hooks use karke state management optimize kaise karein? Ek basic example do."
+      prompt: "How can I optimize state management in React using custom hooks? Show a basic example."
     },
     {
       title: "Next.js 14 / App Router",
       description: "Server Actions, PPR, and Server Components deep dive architecture.",
       icon: <Layers className="w-5 h-5 text-black" />,
-      prompt: "Next.js 14 App Router me Server Actions aur Server Components ka best production structure kya hai?"
+      prompt: "What is the best production architecture for Server Actions and Server Components in Next.js App Router?"
     },
     {
       title: "AI Integration",
-      description: "Gemini API configurations aur efficient prompt engineering implementations.",
+      description: "Gemini API configuration and efficient prompt engineering patterns.",
       icon: <Cpu className="w-5 h-5 text-purple-500" />,
-      prompt: "Next.js me Gemini API integration ke sath dynamic system prompts aur streaming setup kaise banayein?"
+      prompt: "How do I set up Gemini API integration in Next.js with dynamic system prompts and streaming?"
     }
   ];
 
@@ -287,7 +287,7 @@ export default function ChatPage() {
                   Welcome to AI Mentor Spaces
                 </h1>
                 <p className="text-gray-500 max-w-lg mx-auto text-sm md:text-base">
-                  Apne stack ko upgrade karein.
+                  Level up your frontend and AI engineering skills.
                 </p>
               </div>
 
@@ -300,7 +300,7 @@ export default function ChatPage() {
                   >
                     <div className="space-y-3">
                       <div className="p-2.5 bg-white rounded-xl w-fit shadow-sm group-hover:scale-105 transition-transform">
-                        ={card.icon}
+                        {card.icon}
                       </div>
                       <h3 className="font-bold text-gray-900 text-base">{card.title}</h3>
                       <p className="text-gray-500 text-xs leading-relaxed">{card.description}</p>
@@ -359,10 +359,11 @@ interface DeleteHistory {
 const DeleteModal = ({ onClose, onConfirm }: DeleteHistory) => (
   <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
     <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl">
-      <h3 className="text-lg font-bold mb-2">Chat delete karni hai?</h3>
+      <h3 className="text-lg font-bold mb-2">Delete this chat?</h3>
+      <p className="text-sm text-gray-500 mb-4">This action cannot be undone.</p>
       <div className="flex gap-3">
-        <button onClick={onClose} className="flex-1 px-4 py-3 bg-gray-200 rounded-xl">Nahi</button>
-        <button onClick={onConfirm} className="flex-1 px-4 py-3 bg-red-400 text-white rounded-xl">Haan</button>
+        <button onClick={onClose} className="flex-1 px-4 py-3 bg-gray-200 rounded-xl">Cancel</button>
+        <button onClick={onConfirm} className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl">Delete</button>
       </div>
     </div>
   </div>
