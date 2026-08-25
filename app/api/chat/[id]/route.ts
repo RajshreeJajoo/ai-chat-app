@@ -3,11 +3,11 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 
 export async function DELETE(
-  req: Request,
-  { params }: { params: { id: string } }
+  _req: Request,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params; 
+    const { id } = await context.params; 
     const client = await clientPromise;
     const db = client.db("ai-chat-db");
 
