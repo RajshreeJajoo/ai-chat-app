@@ -1,6 +1,6 @@
 # AI Career Mentor
 
-[![Live Demo](https://img.shields.io/badge/demo-vercel-black?style=flat-square&logo=vercel)](https://ai-chat-app-rajshreejajoos-projects.vercel.app)
+[![Live Demo](https://img.shields.io/badge/demo-vercel-black?style=flat-square&logo=vercel)](https://ai-chat-app-steel-xi.vercel.app)
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/RajshreeJajoo/ai-chat-app&project-name=ai-career-mentor&env=GEMINI_API_KEY&env=DATABASE_URL)
 
 A full-stack AI chat application that provides real-time career guidance for frontend and AI engineers. Built with Next.js App Router, TypeScript, Gemini API, and MongoDB.
