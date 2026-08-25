@@ -1,9 +1,16 @@
 # AI Career Mentor
 
+> Full-stack AI career mentor — Next.js · TypeScript · Gemini API · MongoDB · Voice Chat
+
 [![Live Demo](https://img.shields.io/badge/demo-vercel-black?style=flat-square&logo=vercel)](https://ai-chat-app-steel-xi.vercel.app)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/RajshreeJajoo/ai-chat-app&project-name=ai-career-mentor&env=GEMINI_API_KEY&env=DATABASE_URL)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![Gemini](https://img.shields.io/badge/Gemini-AI-4285F4?style=flat-square&logo=google)](https://ai.google.dev/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Database-47A248?style=flat-square&logo=mongodb)](https://www.mongodb.com/)
 
 A full-stack AI chat application that provides real-time career guidance for frontend and AI engineers. Built with Next.js App Router, TypeScript, Gemini API, and MongoDB.
+
+**Live Demo:** https://ai-chat-app-steel-xi.vercel.app
 
 ## Features
 
@@ -27,9 +34,9 @@ A full-stack AI chat application that provides real-time career guidance for fro
 
 ## Screenshots
 
-<img width="1440" height="900" alt="AI Mentor welcome screen" src="https://github.com/user-attachments/assets/9827dd5b-c50a-45bf-96ff-f9666ad7480c" />
-<img width="1440" height="900" alt="Chat conversation view" src="https://github.com/user-attachments/assets/50cbd1d2-ee98-4395-a9f7-1408c2e06ade" />
-<img width="1440" height="900" alt="Voice and markdown features" src="https://github.com/user-attachments/assets/eab7b0f3-96c6-408e-a632-47ffab1751b5" />
+| Welcome | Chat | History |
+|---------|------|---------|
+| <img alt="Welcome screen" src="https://github.com/user-attachments/assets/9827dd5b-c50a-45bf-96ff-f9666ad7480c" width="100%" /> | <img alt="Chat view" src="https://github.com/user-attachments/assets/50cbd1d2-ee98-4395-a9f7-1408c2e06ade" width="100%" /> | <img alt="Features" src="https://github.com/user-attachments/assets/eab7b0f3-96c6-408e-a632-47ffab1751b5" width="100%" /> |
 
 ## Getting Started
 
@@ -110,5 +117,6 @@ ai-chat-app/
 
 - [LinkedIn](https://www.linkedin.com/in/rajshree-jajoo-297049184)
 - [GitHub](https://github.com/RajshreeJajoo)
+- [Live Demo](https://ai-chat-app-steel-xi.vercel.app)
 
 If this project helped you, consider giving it a star.

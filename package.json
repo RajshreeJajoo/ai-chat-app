@@ -2,6 +2,12 @@
   "name": "ai-chat-app",
   "version": "0.1.0",
   "description": "Full-stack AI career mentor chat app built with Next.js, TypeScript, Gemini API, and MongoDB",
+  "keywords": ["nextjs", "typescript", "react", "gemini-ai", "mongodb", "ai-chatbot", "full-stack", "voice-chat"],
+  "homepage": "https://ai-chat-app-steel-xi.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RajshreeJajoo/ai-chat-app.git"
+  },
   "private": true,
   "scripts": {
     "dev": "next dev",

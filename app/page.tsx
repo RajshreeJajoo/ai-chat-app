@@ -50,6 +50,7 @@ export default function ChatPage() {
     stopSpeaking,
     stopListening,
     isSpeaking,
+    speechError,
     setIsSpeaking,
   } = useSpeech();
 
@@ -126,7 +127,8 @@ export default function ChatPage() {
         ...prev,
         { role: "model", parts: [{ text: "🔊 Speaking answer…" }] },
       ]);
-      speak(fullText, () => {
+
+      void speak(fullText, () => {
         setMessages((prev) => {
           const updated = [...prev];
           updated[updated.length - 1] = {
@@ -341,7 +343,7 @@ export default function ChatPage() {
             <div className="space-y-6 w-full max-w-4xl mx-auto">
               <ChatMessages
                 messages={messages}
-                error={error}
+                error={error ?? speechError}
                 loading={loading}
                 isListening={isListening}
                 isSpeaking={isSpeaking}
