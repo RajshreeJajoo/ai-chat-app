@@ -1,6 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from "react";
 
-// Browser interfaces ko accurately map karna
 interface SpeechRecognitionEvent extends Event {
   readonly results: SpeechRecognitionResultList;
 }
@@ -8,12 +7,13 @@ interface SpeechRecognitionEvent extends Event {
 interface SpeechRecognition extends EventTarget {
   lang: string;
   start: () => void;
-  continuous:boolean;
-  interimResults:boolean;
-  // Event handlers ko specific type dena
+  stop: () => void;
+  continuous: boolean;
+  interimResults: boolean;
   onstart: ((this: SpeechRecognition, ev: Event) => void) | null;
   onend: ((this: SpeechRecognition, ev: Event) => void) | null;
   onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => void) | null;
+  onerror: ((this: SpeechRecognition, ev: Event) => void) | null;
 }
 
 declare global {
@@ -23,62 +23,162 @@ declare global {
   }
 }
 
+/** Strip markdown so TTS reads naturally */
+export function stripMarkdownForSpeech(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, " Here is a code example. ")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/(\*\*|__|\*|_|~~)/g, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/\n{2,}/g, ". ")
+    .replace(/\n/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function pickClearEnglishVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined {
+  const preferred = [
+    "Google US English",
+    "Samantha",
+    "Microsoft Zira",
+    "Microsoft David",
+    "Alex",
+    "Karen",
+    "Daniel",
+  ];
+
+  for (const name of preferred) {
+    const match = voices.find((v) => v.name.includes(name) && v.lang.startsWith("en"));
+    if (match) return match;
+  }
+
+  return (
+    voices.find((v) => v.lang === "en-US" && !v.localService) ??
+    voices.find((v) => v.lang.startsWith("en")) ??
+    voices[0]
+  );
+}
+
 export const useSpeech = () => {
-  const [isListening, setIsListening] = useState<boolean>(false);
-const [isSpeaking, setIsSpeaking] = useState(false);
-const speak = useCallback((text: string, shouldSpeak: boolean) => {
-  if (!shouldSpeak) return;
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  const synth = window.speechSynthesis;
-  synth.cancel();
+  useEffect(() => {
+    const loadVoices = () => {
+      voicesRef.current = window.speechSynthesis.getVoices();
+    };
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  
-  const voices = synth.getVoices();
-  const hindiVoice = voices.find(v => v.lang === 'hi-IN') || voices[0];
-  utterance.onstart = () => setIsSpeaking(true);
-  utterance.onend = () => setIsSpeaking(false);
-  utterance.onerror = () => setIsSpeaking(false);
-  utterance.voice = hindiVoice;
-  utterance.lang = text.match(/[a-zA-Z]/) ? 'en-US' : 'hi-IN';
-//   utterance.lang = 'hi-IN';
-  utterance.rate = 1.0; 
-  utterance.pitch = 1.0; 
-  
-  synth.speak(utterance);
-}, []);
+    loadVoices();
+    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
+    return () => {
+      window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
+    };
+  }, []);
 
-  const startListening = useCallback((onResult: (text: string) => void): void => {
-    const RecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    if (!RecognitionConstructor) {
-      console.error("Speech Recognition not supported.");
+  const speak = useCallback((text: string, onComplete?: () => void) => {
+    const synth = window.speechSynthesis;
+    synth.cancel();
+
+    const cleanText = stripMarkdownForSpeech(text);
+    if (!cleanText) {
+      onComplete?.();
       return;
     }
 
-    const recognition = new RecognitionConstructor();
-    recognition.lang = 'en-US'; 
-   recognition.continuous = true;
-    recognition.interimResults = false;
-    // Typed event handlers
-    recognition.onstart = (): void => setIsListening(true);
-    recognition.onend = (): void => setIsListening(false);
-    
-    // recognition.onresult = (event: SpeechRecognitionEvent): void => {
-    // const transcript = Array.from(event.results)
-    //     .map((result) => result[0].transcript)
-    //     .join('');
-    //   onResult(transcript);
-    // };
-    recognition.onresult = (event: SpeechRecognitionEvent): void => {
-      // Sirf last index ka transcript lein (purana repeat nahi hoga)
-      const lastIndex = event.results.length - 1;
-      const transcript = event.results[lastIndex][0].transcript;
-      onResult(transcript);
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    const voices = voicesRef.current.length
+      ? voicesRef.current
+      : synth.getVoices();
+
+    const voice = pickClearEnglishVoice(voices);
+    if (voice) utterance.voice = voice;
+
+    utterance.lang = "en-US";
+    utterance.rate = 0.92;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      onComplete?.();
+    };
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      onComplete?.();
     };
 
-    recognition.start();
+    synth.speak(utterance);
   }, []);
 
-  return { isListening, speak, startListening , isSpeaking , setIsSpeaking };
+  const stopSpeaking = useCallback(() => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+  }, []);
+
+  const startListening = useCallback(
+    (onComplete: (text: string) => void): void => {
+      const RecognitionConstructor =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (!RecognitionConstructor) {
+        console.error("Speech Recognition not supported.");
+        return;
+      }
+
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+
+      const recognition = new RecognitionConstructor();
+      recognitionRef.current = recognition;
+      recognition.lang = "en-US";
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      let finalTranscript = "";
+
+      recognition.onstart = () => setIsListening(true);
+
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        finalTranscript = event.results[0][0].transcript.trim();
+      };
+
+      recognition.onerror = () => {
+        setIsListening(false);
+        recognitionRef.current = null;
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        recognitionRef.current = null;
+        if (finalTranscript) {
+          onComplete(finalTranscript);
+        }
+      };
+
+      recognition.start();
+    },
+    []
+  );
+
+  const stopListening = useCallback(() => {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  }, []);
+
+  return {
+    isListening,
+    isSpeaking,
+    speak,
+    stopSpeaking,
+    startListening,
+    stopListening,
+    setIsSpeaking,
+  };
 };

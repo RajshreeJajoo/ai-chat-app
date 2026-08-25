@@ -12,10 +12,18 @@ interface ChatMessagesProps {
   messages: ChatMessage[];
   loading: boolean;
   error: string | null;
-//   messagesEndRef: React.RefObject<HTMLDivElement> | null;
-  messagesEndRef: React.RefObject<HTMLDivElement | null>; 
+  isListening?: boolean;
+  isSpeaking?: boolean;
+  messagesEndRef: React.RefObject<HTMLDivElement | null>;
 }
-export const ChatMessages = ({ messages, error, loading, messagesEndRef }: ChatMessagesProps) => (
+export const ChatMessages = ({
+  messages,
+  error,
+  loading,
+  isListening,
+  isSpeaking,
+  messagesEndRef,
+}: ChatMessagesProps) => (
   <div className="max-w-3xl mx-auto w-full">
     {messages.map((m: ChatMessage, i: number) => (
       <div key={i} className={`mb-8 flex w-full gap-4 ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
@@ -35,12 +43,14 @@ export const ChatMessages = ({ messages, error, loading, messagesEndRef }: ChatM
       </div>
     ))}
     {error && <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-xs rounded-xl mb-4">Error: {error}</div>}
-          {loading && messages[messages.length - 1]?.role === "user" && (
-                <div className="flex items-center gap-3 mt-4 animate-pulse">
-                  <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center text-[10px]">AI</div>
-                  <div className="px-4 py-3 bg-gray-50 rounded-2xl border">Thinking...</div>
-                </div>
-              )}           
+    {loading && messages[messages.length - 1]?.role === "user" && (
+      <div className="flex items-center gap-3 mt-4 animate-pulse">
+        <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center text-[10px]">AI</div>
+        <div className="px-4 py-3 bg-gray-50 rounded-2xl border">
+          {isListening ? "Listening…" : isSpeaking ? "Speaking…" : "Thinking…"}
+        </div>
+      </div>
+    )}
                 <div ref={messagesEndRef} />
   </div>
 );

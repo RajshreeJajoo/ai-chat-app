@@ -79,7 +79,7 @@ export async function POST(req: Request) {
         role: m.role === "model" ? "model" : "user",
         parts: [{ text: m.parts[0].text }],
       })),
-      generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
+      generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
     };
 
     const response = await fetch(url, {
