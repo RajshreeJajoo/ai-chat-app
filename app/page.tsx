@@ -23,7 +23,7 @@ interface DBMessage {
 type InputMode = "text" | "voice";
 
 const GREETING =
-  "Hi! I'm your AI career mentor. Ask me anything about React, Next.js, TypeScript, or AI integration.";
+  "Hi! I'm your AI career mentor. Ask me anything about React, Next.js, React Native , Node.js, TypeScript, or AI integration.";
 
 export default function ChatPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -193,7 +193,7 @@ export default function ChatPage() {
         body: JSON.stringify({
           messages: updatedMessages,
           userProfile: {
-            skills: "Artificial Intelligence, Machine Learning, Next.js, and React",
+            skills: "Artificial Intelligence, Machine Learning, Next.js, React Native , Node.js, and React",
           },
           chatId: activeChatId,
         }),
